@@ -1,0 +1,7 @@
+name: CustomerPdf
+event: CustomerPdfEvent
+code: CustomerPdf
+version: 1.0.0
+service:
+    - CustomerPdfServiceProvider
+

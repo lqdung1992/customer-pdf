@@ -1,0 +1,8 @@
+#
+# Event fock
+#
+Mypage/history.twig:
+    - [onMypageHistoryRender, NORMAL]
+
+Shopping/index.twig:
+    - [onShoppingIndexRender, NORMAL]
