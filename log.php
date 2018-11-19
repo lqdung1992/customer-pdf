@@ -8,7 +8,7 @@
  * file that was distributed with this source code.
  */
 
-use Plugin\OrderPdf\Util\Version;
+use Plugin\CustomerPdf\Util\Version;
 
 if (Version::isSupportLogFunction()) {
     return;

@@ -22,6 +22,7 @@ class CustomerPdfService extends AbstractFPDIService
 
     /** 通貨単位 */
     const MONETARY_UNIT = '円';
+    const MONEY_PREFIX = '¥ ';
 
     /** ダウンロードするPDFファイルのデフォルト名 */
     const DEFAULT_PDF_FILE_NAME = 'nouhinsyo.pdf';
@@ -94,7 +95,7 @@ class CustomerPdfService extends AbstractFPDIService
         // 168.5
         // 123
 //        $this->widthCell = array(25, 50, 12, 12, 24);
-        $this->widthCell = array(30, 100, 20, 20, 28);
+        $this->widthCell = array(35, 80, 19, 20, 28);
 
         // Fontの設定しておかないと文字化けを起こす
          $this->SetFont(self::FONT_SJIS);
@@ -103,12 +104,14 @@ class CustomerPdfService extends AbstractFPDIService
         $this->SetMargins(15, 20);
 
         // ヘッダーの出力を無効化
-        $this->setPrintHeader(false);
+        $this->setPrintHeader(true);
+        $this->setHeaderMargin();
+        $this->setHeaderFont(array(self::FONT_SJIS, '', 8));
 
         // フッターの出力を無効化
-        $this->setPrintFooter(true);
-        $this->setFooterMargin();
-        $this->setFooterFont(array(self::FONT_SJIS, '', 8));
+        $this->setPrintFooter(false);
+//        $this->setFooterMargin();
+//        $this->setFooterFont(array(self::FONT_SJIS, '', 8));
     }
 
     /**
@@ -119,7 +122,11 @@ class CustomerPdfService extends AbstractFPDIService
     public function makePdf(Order $order, $type)
     {
         $now = new \DateTime();
-        $this->issueDate = $now->format('Y年m月d日');
+        $orderDate = $order->getCreateDate()->format('Y年m月d日');
+        if ($order->getOrderDate()) {
+            $orderDate = $order->getOrderDate()->format('Y年m月d日');
+        }
+        $this->issueDate = $orderDate ? $orderDate : $now->format('Y年m月d日');
 
         $this->downloadFileName = null;
 
@@ -156,7 +163,7 @@ class CustomerPdfService extends AbstractFPDIService
 //            $this->renderTitle($formData['title']);
 
             // 店舗情報を描画する
-            $this->renderShopData();
+//            $this->renderShopData();
 
             // 注文情報を描画する
             $this->renderOrderData($order);
@@ -206,6 +213,14 @@ class CustomerPdfService extends AbstractFPDIService
      * フッターに発行日を出力する.
      */
     public function Footer()
+    {
+        $this->Cell(0, 0, $this->issueDate, 0, 0, 'R');
+    }
+
+    /**
+     * フッターに発行日を出力する.
+     */
+    public function Header()
     {
         $this->Cell(0, 0, $this->issueDate, 0, 0, 'R');
     }
@@ -279,12 +294,12 @@ class CustomerPdfService extends AbstractFPDIService
     /**
      * @param string $message
      */
-    protected function renderMessageData($message)
-    {
-        $this->lfText(27, 70, $message, 8);  //メッセージ1
+//    protected function renderMessageData($message)
+//    {
+//        $this->lfText(27, 70, $message, 8);  //メッセージ1
 //        $this->lfText(27, 74, $formData['message2'], 8);  //メッセージ2
 //        $this->lfText(27, 78, $formData['message3'], 8);  //メッセージ3
-    }
+//    }
 
     /**
      * @param string $message
@@ -294,7 +309,7 @@ class CustomerPdfService extends AbstractFPDIService
         // フォント情報のバックアップ
         $this->backupFont();
 
-        $this->Cell(0, 10, '', 0, 1, 'C', 0, '');
+//        $this->Cell(0, 10, '', 0, 1, 'C', 0, '');
 
 //        $this->SetFont(self::FONT_GOTHIC, 'B', 9);
 //        $this->MultiCell(0, 6, '＜ 備考 ＞', 'T', 2, 'L', 0, '');
@@ -304,7 +319,7 @@ class CustomerPdfService extends AbstractFPDIService
         $this->Ln();
         // rtrimを行う
         $text = preg_replace('/\s+$/us', '', $message);
-        $this->MultiCell(0, 8, $text, null, 2, 'L', 0, '');
+        $this->MultiCell(0, 0, $text, 0, null, false, 0);
 
         // フォント情報の復元
         $this->restoreFont();
@@ -351,39 +366,36 @@ class CustomerPdfService extends AbstractFPDIService
         // =========================================
         // 郵便番号
         $text = $Order->getZip01().' - '.$Order->getZip02();
-//        $this->lfText(23, 43, $text, 10);
-        $this->lfText(20, 40, $text, 10);
+        $defaultFontSize = 12;
+        $this->lfText(20, 34, $text, $defaultFontSize);
 
         // 購入者都道府県+住所1
         $text = $Order->getPref().$Order->getAddr01();
-        $this->lfText(20, 44, $text, 10);
-        $this->lfText(20, 48, $Order->getAddr02(), 10); //購入者住所2
+        $this->lfText(20, 39, $text, $defaultFontSize);
+        $this->lfText(20, 44, $Order->getAddr02(), $defaultFontSize); //購入者住所2
 
-        $this->lfText(20, 52, $Order->getTel01() . '-' . $Order->getTel02() . '-'.$Order->getTel03(), 10); //購入者住所2
+        $this->lfText(20, 49, $Order->getTel01() . '-' . $Order->getTel02() . '-'.$Order->getTel03(), $defaultFontSize); //購入者住所2
 
         // 購入者氏名
         $text = $Order->getName01().'　'.$Order->getName02().'　様';
-        $this->lfText(20, 57, $text, 11);
+        $this->lfText(20, 55, $text, $defaultFontSize + 2);
 
         // =========================================
         // お買い上げ明細部
         // =========================================
-        $this->SetFont(self::FONT_SJIS, '', 10);
+        $this->SetFont(self::FONT_SJIS, '', $defaultFontSize);
 
         //ご注文日
-        $orderDate = $Order->getCreateDate()->format('Y/m/d H:i');
-        if ($Order->getOrderDate()) {
-            $orderDate = $Order->getOrderDate()->format('Y/m/d H:i');
-        }
 
-        $this->lfText(25, 125, $orderDate , 10);
+
+//        $this->lfText(150, 0, $orderDate , $defaultFontSize);
         //注文番号
-        $this->lfText(25, 135, $Order->getId(), 10);
+//        $this->lfText(25, 135, $Order->getId(), $defaultFontSize);
 
-        // 総合計金額
+        // total
         $this->SetFont(self::FONT_SJIS, 'B', 15);
-        $paymentTotalText = number_format($Order->getPaymentTotal()).' '.self::MONETARY_UNIT;
-        $this->lfText(110, 80, $paymentTotalText, 15, 'B');
+        $paymentTotalText = self::MONEY_PREFIX.number_format($Order->getPaymentTotal());
+        $this->lfText(90, 77, $paymentTotalText, 15, 'B');
 //        80
 //        $this->setBasePosition(120, 95.5);
 //        $this->Cell(5, 7, '', 0, 0, '', 0, '');
@@ -424,16 +436,16 @@ class CustomerPdfService extends AbstractFPDIService
             $tax = $this->app['eccube.service.tax_rule']->calcTax($OrderDetail->getPrice(), $OrderDetail->getTaxRate(), $OrderDetail->getTaxRule());
             $OrderDetail->setPriceIncTax($OrderDetail->getPrice() + $tax);
 
-            // todo: code
+            // todo: order code
             $arrOrder[$i][0] = $OrderDetail->getId();
             // product
             $arrOrder[$i][1] = sprintf('%s / %s / %s', $OrderDetail->getProductName(), $OrderDetail->getProductCode(), $classCategory);
             // 税込金額（単価）
-            $arrOrder[$i][2] = number_format($OrderDetail->getPriceIncTax()).self::MONETARY_UNIT;
+            $arrOrder[$i][2] = number_format($OrderDetail->getPriceIncTax());
             // 購入数量
             $arrOrder[$i][3] = number_format($OrderDetail->getQuantity());
             // 小計（商品毎）
-            $arrOrder[$i][4] = number_format($OrderDetail->getTotalPrice()).self::MONETARY_UNIT;
+            $arrOrder[$i][4] = number_format($OrderDetail->getTotalPrice());
 
             ++$i;
         }
@@ -454,9 +466,10 @@ class CustomerPdfService extends AbstractFPDIService
 
         ++$i;
         $arrOrder[$i][0] = '';
-        $arrOrder[$i][1] = '';
-        $arrOrder[$i][2] = '送料';
-        $arrOrder[$i][3] = number_format($Order->getDeliveryFeeTotal()).self::MONETARY_UNIT;
+        $arrOrder[$i][1] = '送料';
+        $arrOrder[$i][2] = number_format($Order->getDeliveryFeeTotal());
+        $arrOrder[$i][3] = 1;
+        $arrOrder[$i][4] = number_format($Order->getDeliveryFeeTotal());
 
         $total['subtotal'] = number_format($Order->getSubtotal());
         $total['charge'] = number_format($Order->getCharge());
@@ -522,7 +535,7 @@ class CustomerPdfService extends AbstractFPDIService
         // 開始座標の設定
 //         $this->setBasePosition(0, 149);
         //95.5
-         $this->setBasePosition(0, 96);
+         $this->setBasePosition(0, 100);
 
         // Colors, line width and bold font
 //        $this->SetFillColor(216, 216, 216);
@@ -547,22 +560,25 @@ class CustomerPdfService extends AbstractFPDIService
 //        $this->SetTextColor(0);
 //        $this->SetFont('');
         // Data
-        $fill = 0;
-        $h = 8;
-        foreach ($data as $row) {
+//        $fill = 0;
+//        $h = 8;
+        foreach ($data as $rowKey => $row) {
             // 行のの処理
             $i = 0;
-            $h = 8;
+            $h = 13;
 //            $this->Cell(5, $h, '', 0, 0, '', 0, '');
 
             // Cellの高さを保持
             $cellHeight = 0;
-            foreach ($row as $col) {
+            foreach ($row as $key => $col) {
                 // 列の処理
                 // TODO: 汎用的ではない処理。この指定は呼び出し元で行うようにしたい。
                 // テキストの整列を指定する
 //                $align = ($i == 0) ? 'L' : 'R';
                 $align = 'C';
+                if ($key == 1 && $rowKey != (count($row) - 2)) {
+                    $align = 'L';
+                }
 
                 // セル高さが最大値を保持する
                 if ($h >= $cellHeight) {
@@ -571,22 +587,22 @@ class CustomerPdfService extends AbstractFPDIService
 
                 // 最終列の場合は次の行へ移動
                 // (0: 右へ移動(既定)/1: 次の行へ移動/2: 下へ移動)
-//                $ln = ($i == (count($row) - 1)) ? 1 : 0;
+                $ln = ($i == (count($row) - 1)) ? 1 : 0;
 
                 $this->MultiCell(
                     $w[$i],             // セル幅
                     $cellHeight,        // セルの最小の高さ
                     $col,               // 文字列
                     0,                  // 境界線の描画方法を指定
-                    $align             // テキストの整列
-//                    false              // 背景の塗つぶし指定
-//                    $ln                 // 出力後のカーソルの移動方法
+                    $align,             // テキストの整列
+                    false,              // 背景の塗つぶし指定
+                    $ln                 // 出力後のカーソルの移動方法
                 );
                 $h = $this->getLastH();
 
                 ++$i;
             }
-            $fill = !$fill;
+//            $fill = !$fill;
         }
 
         $rowNum = count($data);
@@ -601,9 +617,16 @@ class CustomerPdfService extends AbstractFPDIService
         }
         // base line: 96
         // 8*9 = 72
+        $h = 9;
+        $this->Ln(5);
         foreach ($total as $item) {
-            $this->Cell(20, 8, $item, 0, false, 'R');
+//            if ($h < $cellHeight) {
+//                $h = $cellHeight;
+//            }
+            $this->Cell(0, $h, $item, 0, 0, 'R');
+//            $cellHeight = 8;
             $this->Ln();
+            $h = $this->getLastH();
         }
 //        $this->lfText(72, $y, $text)
 

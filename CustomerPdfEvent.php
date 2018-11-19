@@ -47,7 +47,6 @@ class CustomerPdfEvent
         /** @var \Twig_Environment $twig */
         $twig = $this->app['twig'];
         $insertPart = $twig->getLoader()->getSource('CustomerPdf/Resource/template/default/Shopping/shopping_pdf_button.twig');
-
         $newSource = str_replace('{% block main %}', '{% block main %}'.$insertPart, $source);
         $parameters = $event->getParameters();
         $parameters['order_id'] = $parameters['Order']->getId();
