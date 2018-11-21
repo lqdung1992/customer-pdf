@@ -1,8 +1,13 @@
 <script type="text/javascript">
     $(function () {
-        $("#export-pdf").insertAfter("#summary_box__confirm_button");
+        $("#invoice-export-pdf").insertAfter("#summary_box__confirm_button");
+        $("#est-export-pdf").insertAfter("#summary_box__confirm_button");
     });
 </script>
-<p id="export-pdf">
-    <a href="{{ url('plugin_customer_pdf_download', {'id': order_id, 'type' : export_type}) }}" class="btn btn-primary btn-block" {{ csrf_token_for_anchor() }} data-method="post" data-confirm="false">export</a>
+<p id="est-export-pdf">
+    <a href="{{ url('plugin_customer_pdf_download', {'id': Order.id, 'type' : constant("Plugin\\CustomerPdf\\Util\\PdfType::ORDER_ESTIMATE")}) }}" class="btn btn-primary btn-block" {{ csrf_token_for_anchor() }} data-method="post" data-confirm="false">Export EST</a>
+</p>
+
+<p id="invoice-export-pdf">
+    <a href="{{ url('plugin_customer_pdf_download', {'id': Order.id, 'type' : constant("Plugin\\CustomerPdf\\Util\\PdfType::ORDER_INVOICE")}) }}" class="btn btn-primary btn-block" {{ csrf_token_for_anchor() }} data-method="post" data-confirm="false">export invoice</a>
 </p>

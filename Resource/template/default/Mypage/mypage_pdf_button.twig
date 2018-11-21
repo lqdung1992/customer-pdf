@@ -1,0 +1,13 @@
+<script type="text/javascript">
+    $(function () {
+        $("#history-invoice-export-pdf").insertAfter("#summary_box__reorder_button");
+        $("#delivery-export-pdf").insertAfter("#summary_box__reorder_button");
+    });
+</script>
+<p id="history-invoice-export-pdf">
+    <a href="{{ url('plugin_customer_pdf_download', {'id': Order.id, 'type' : constant("Plugin\\CustomerPdf\\Util\\PdfType::HISTORY_INVOICE")}) }}" class="btn btn-primary btn-block" {{ csrf_token_for_anchor() }} data-method="post" data-confirm="false">Export history invoice</a>
+</p>
+
+<p id="delivery-export-pdf">
+    <a href="{{ url('plugin_customer_pdf_download', {'id': Order.id, 'type' : constant("Plugin\\CustomerPdf\\Util\\PdfType::HISTORY_DELIVERY")}) }}" class="btn btn-primary btn-block" {{ csrf_token_for_anchor() }} data-method="post" data-confirm="false">export delivery</a>
+</p>

@@ -54,14 +54,14 @@ class CustomerPdfController extends AbstractController
 
         // ダウンロードする
         $response = new Response(
-            $service->outputPdf(),
+            $service->outputPdf($type),
             200,
             array('content-type' => 'application/pdf')
         );
 
         // レスポンスヘッダーにContent-Dispositionをセットし、ファイル名をreceipt.pdfに指定
-        $response->headers->set('Content-Disposition', 'attachment; filename="'.$service->getPdfFileName().'"');
-        log_info('OrderPdf download success!', array('Order ID' => implode(',', $this->getIds($request))));
+        $response->headers->set('Content-Disposition', 'attachment; filename="'.$service->getPdfFileName($type).'"');
+//        log_info('OrderPdf download success!', array('Order ID' => implode(',', $this->getIds($request))));
 
         return $response;
     }
