@@ -1,11 +1,9 @@
 <?php
-/*
- * This file is part of the Order Pdf plugin
- *
- * Copyright (C) 2016 LOCKON CO.,LTD. All Rights Reserved.
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+/**
+ * Author: Dung Le Quoc
+ * Email: lqdung1992@gmail.com
+ * Date: 11/5/2018
+ * Time: 2:30 PM
  */
 
 namespace Plugin\CustomerPdf\ServiceProvider;
@@ -31,17 +29,11 @@ class CustomerPdfServiceProvider implements ServiceProviderInterface
      */
     public function register(BaseApplication $app)
     {
-        // ============================================================
-        // コントローラの登録
-        // ============================================================
-        // 管理画面定義
         $front = $app['controllers_factory'];
-        // 強制SSL
         if ($app['config']['force_ssl'] == Constant::ENABLED) {
             $front->requireHttps();
         }
 
-        // PDFファイルダウンロード
         $front->post('/plugin/pdf/download/{id}/{type}', '\\Plugin\\CustomerPdf\\Controller\\CustomerPdfController::download')
             ->assert('id', '\d+')
             ->assert('type', '\d+')
@@ -49,21 +41,9 @@ class CustomerPdfServiceProvider implements ServiceProviderInterface
 
         $app->mount('/', $front);
 
-        // -----------------------------
-        // サービスの登録
-        // -----------------------------
-        // 帳票作成
         $app['customer_pdf.service'] = $app->share(function () use ($app) {
             return new CustomerPdfService($app);
         });
-
-        // ============================================================
-        // メッセージ登録
-        // ============================================================
-        $file = __DIR__.'/../Resource/locale/message.'.$app['locale'].'.yml';
-        if (file_exists($file)) {
-            $app['translator']->addResource('yaml', $file, $app['locale']);
-        }
 
         // initialize logger (for 3.0.0 - 3.0.8)
         if (!Version::isSupportMethod()) {

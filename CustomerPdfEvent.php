@@ -1,4 +1,11 @@
 <?php
+/**
+ * Author: Dung Le Quoc
+ * Email: lqdung1992@gmail.com
+ * Date: 11/5/2018
+ * Time: 2:30 PM
+ */
+
 namespace Plugin\CustomerPdf;
 
 use Eccube\Application;
@@ -19,7 +26,6 @@ class CustomerPdfEvent
     {
         $this->app = $app;
     }
-
 
     /**
      * Event for new hook point.

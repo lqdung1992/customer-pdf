@@ -1,4 +1,11 @@
 <?php
+/**
+ * Author: Dung Le Quoc
+ * Email: lqdung1992@gmail.com
+ * Date: 11/5/2018
+ * Time: 2:30 PM
+ */
+
 namespace Plugin\CustomerPdf\Service;
 
 $includePath = get_include_path().';'.__DIR__.'/../vendor/tcpdf';

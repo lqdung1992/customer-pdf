@@ -1,3 +1,11 @@
+{#
+/**
+ * Author: Dung Le Quoc
+ * Email: lqdung1992@gmail.com
+ * Date: 11/5/2018
+ * Time: 2:30 PM
+ */
+#}
 <script type="text/javascript">
     $(function () {
         $("#history-invoice-export-pdf").insertAfter("#summary_box__reorder_button").removeClass('hidden');
@@ -5,9 +13,9 @@
     });
 </script>
 <p id="history-invoice-export-pdf" class="hidden">
-    <a href="{{ url('plugin_customer_pdf_download', {'id': Order.id, 'type' : constant("Plugin\\CustomerPdf\\Util\\PdfType::HISTORY_INVOICE")}) }}" class="btn btn-primary btn-block" {{ csrf_token_for_anchor() }} data-method="post" data-confirm="false">Export history invoice</a>
+    <a href="{{ url('plugin_customer_pdf_download', {'id': Order.id, 'type' : constant("Plugin\\CustomerPdf\\Util\\PdfType::HISTORY_INVOICE")}) }}" class="btn btn-primary btn-block" {{ csrf_token_for_anchor() }} data-method="post" data-confirm="false">請求書</a>
 </p>
 
 <p id="delivery-export-pdf" class="hidden">
-    <a href="{{ url('plugin_customer_pdf_download', {'id': Order.id, 'type' : constant("Plugin\\CustomerPdf\\Util\\PdfType::HISTORY_DELIVERY")}) }}" class="btn btn-primary btn-block" {{ csrf_token_for_anchor() }} data-method="post" data-confirm="false">export delivery</a>
+    <a href="{{ url('plugin_customer_pdf_download', {'id': Order.id, 'type' : constant("Plugin\\CustomerPdf\\Util\\PdfType::HISTORY_DELIVERY")}) }}" class="btn btn-primary btn-block" {{ csrf_token_for_anchor() }} data-method="post" data-confirm="false">納品書</a>
 </p>

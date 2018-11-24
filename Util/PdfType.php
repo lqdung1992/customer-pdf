@@ -1,7 +1,7 @@
 <?php
 /**
- * Created by PhpStorm.
- * User: lqdung
+ * Author: Dung Le Quoc
+ * Email: lqdung1992@gmail.com
  * Date: 11/5/2018
  * Time: 2:30 PM
  */

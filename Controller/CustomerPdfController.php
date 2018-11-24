@@ -1,4 +1,12 @@
 <?php
+/**
+ * Author: Dung Le Quoc
+ * Email: lqdung1992@gmail.com
+ * Date: 11/5/2018
+ * Time: 2:30 PM
+ */
+
+
 namespace Plugin\CustomerPdf\Controller;
 
 use Eccube\Application;
@@ -24,13 +32,14 @@ class CustomerPdfController extends AbstractController
      * @param $id
      * @param int $type
      * @return Response
+     * @throws Application\AuthenticationCredentialsNotFoundException
      */
     public function download(Application $app, Request $request, $id, $type = PdfType::ORDER_ESTIMATE)
     {
         $this->isTokenValid($app);
 
         if (!$app->isGranted('ROLE_USER')) {
-            throw new BadRequestHttpException("please login to use this feature!");
+            throw new BadRequestHttpException("Please login to use this feature!");
         }
         /** @var OrderRepository $orderRepo */
         $orderRepo = $app['eccube.repository.order'];
@@ -40,66 +49,23 @@ class CustomerPdfController extends AbstractController
             throw new NotFoundHttpException();
         }
 
-        // サービスの取得
         /* @var CustomerPdfService $service */
         $service = $app['customer_pdf.service'];
 
-        // 購入情報からPDFを作成する
         $status = $service->makePdf($order, $type);
 
-        // 異常終了した場合の処理
         if (!$status) {
             throw new NotFoundResourceException("please check input!");
         }
 
-        // ダウンロードする
         $response = new Response(
             $service->outputPdf($type),
             200,
             array('content-type' => 'application/pdf')
         );
 
-        // レスポンスヘッダーにContent-Dispositionをセットし、ファイル名をreceipt.pdfに指定
         $response->headers->set('Content-Disposition', 'attachment; filename="'.$service->getPdfFileName($type).'"');
-//        log_info('OrderPdf download success!', array('Order ID' => implode(',', $this->getIds($request))));
 
         return $response;
-    }
-
-    /**
-     * requestから注文番号のID一覧を取得する.
-     *
-     * @param Request $request
-     *
-     * @return array $isList
-     */
-    protected function getIds(Request $request)
-    {
-        $isList = array();
-
-        // その他メニューのバージョン
-        $queryString = $request->getQueryString();
-
-        if (empty($queryString)) {
-            return $isList;
-        }
-
-        // クエリーをparseする
-        // idsX以外はない想定
-        parse_str($queryString, $ary);
-
-        foreach ($ary as $key => $val) {
-            // キーが一致
-            if (preg_match('/^ids\d+$/', $key)) {
-                if (!empty($val) && $val == 'on') {
-                    $isList[] = intval(str_replace('ids', '', $key));
-                }
-            }
-        }
-
-        // id順にソートする
-        sort($isList);
-
-        return $isList;
     }
 }

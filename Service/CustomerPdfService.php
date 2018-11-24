@@ -1,10 +1,15 @@
 <?php
+/**
+ * Author: Dung Le Quoc
+ * Email: lqdung1992@gmail.com
+ * Date: 11/5/2018
+ * Time: 2:30 PM
+ */
 
 namespace Plugin\CustomerPdf\Service;
 
 use Eccube\Application;
 use Eccube\Entity\BaseInfo;
-use Eccube\Entity\Help;
 use Eccube\Entity\Order;
 use Eccube\Entity\OrderDetail;
 use Plugin\CustomerPdf\Util\PdfType;
@@ -114,9 +119,9 @@ class CustomerPdfService extends AbstractFPDIService
         switch ($type) {
             case PdfType::HISTORY_DELIVERY:
                 $this->headerData = array(
-                    'order date' => ': ' . $orderDate,
-                    'order id' => ': ' . $order->getId(),
-                    'todo' => ': todo todo'
+                    'ご注文日時' => ': ' . $orderDate,
+                    'ご注文番号' => ': ' . $order->getId(),
+                    'todo' => ': todo todo' // todo: I don't know
                 );
                 break;
             case PdfType::HISTORY_INVOICE:
@@ -194,7 +199,7 @@ class CustomerPdfService extends AbstractFPDIService
 
     protected function renderOrder(Order $order)
     {
-        list($total, $arrOrder) = $this->buildOrderData($order);
+        $arrOrder = $this->buildOrderData($order);
         $widthCell = array(36, 80, 19, 20, 28);
 
         $arrChunkRender = array(
@@ -203,6 +208,10 @@ class CustomerPdfService extends AbstractFPDIService
         if (count($arrOrder) > 9) {
             $arrChunkRender = array_chunk($arrOrder, 9);
         }
+
+        $total['subtotal'] = number_format($order->getPaymentTotal() - $order->getTax());
+        $total['tax'] = number_format($order->getTax());
+        $total['total'] = number_format($order->getPaymentTotal());
 
         foreach ($arrChunkRender as $key => $orderDetail) {
             // render data of order
@@ -309,8 +318,6 @@ class CustomerPdfService extends AbstractFPDIService
     }
 
     /**
-     * 購入者情報を設定する.
-     *
      * @param Order $Order
      */
     protected function renderOrderData(Order $Order)
@@ -332,8 +339,6 @@ class CustomerPdfService extends AbstractFPDIService
         $text = $Order->getName01() . '　' . $Order->getName02() . '　様';
         $this->lfText(20, 55, $text, $defaultFontSize + 2);
 
-
-//        $this->SetFont(self::FONT_SJIS, '', $defaultFontSize);
         // total
         $this->SetFont(self::FONT_SJIS, 'B', $defaultFontSize + 3);
         if ($this->type == PdfType::ORDER_ESTIMATE) {
@@ -346,18 +351,12 @@ class CustomerPdfService extends AbstractFPDIService
         $this->restoreFont();
     }
 
-    /**
-     * 作成するPDFのテンプレートファイルを指定する.
-     */
     protected function addPdfPage()
     {
-        // ページを追加
         $this->AddPage();
 
-        // テンプレートに使うテンプレートファイルのページ番号を取得
         $tplIdx = $this->importPage(1);
 
-        // テンプレートに使うテンプレートファイルのページ番号を指定
         $this->useTemplate($tplIdx, null, null, null, null, true);
 
         // set header by manual because it overdrive by template
@@ -371,24 +370,19 @@ class CustomerPdfService extends AbstractFPDIService
      */
     protected function renderMessage($message)
     {
-        // フォント情報のバックアップ
         $this->backupFont();
-
         $this->SetFont(self::FONT_SJIS, '', $this->defaultFontSize + 3);
 
         $this->Ln();
-        // rtrimを行う
         $text = preg_replace('/\s+$/us', '', $message);
         $this->MultiCell(0, 0, $text, 0, null, false, 0);
 
-        // フォント情報の復元
         $this->restoreFont();
     }
 
     /**
-     * 購入商品詳細情報を設定する.
-     *
      * @param Order $Order
+     * @return array
      */
     protected function buildOrderData(Order $Order)
     {
@@ -396,7 +390,6 @@ class CustomerPdfService extends AbstractFPDIService
         $i = 0;
         /* @var OrderDetail $OrderDetail */
         foreach ($Order->getOrderDetails() as $OrderDetail) {
-            // class categoryの生成
             $classCategory = '';
             if ($OrderDetail->getClassCategoryName1()) {
                 $classCategory .= ' [ ' . $OrderDetail->getClassCategoryName1();
@@ -421,22 +414,21 @@ class CustomerPdfService extends AbstractFPDIService
                 $productName .= ' / ' . $classCategory;
             }
             $arrOrder[$i][1] = $productName;
-            // 税込金額（単価）
             $arrOrder[$i][2] = number_format($OrderDetail->getPrice());
-            // 購入数量
             $arrOrder[$i][3] = number_format($OrderDetail->getQuantity());
-            // 小計（商品毎）
             $arrOrder[$i][4] = number_format($OrderDetail->getTotalPrice());
 
             ++$i;
         }
 
+        // delivery
         $arrOrder[$i][0] = '';
         $arrOrder[$i][1] = '送料';
         $arrOrder[$i][2] = number_format($Order->getDeliveryFeeTotal());
         $arrOrder[$i][3] = 1;
         $arrOrder[$i][4] = number_format($Order->getDeliveryFeeTotal());
 
+        // charge
         if ($Order->getCharge() > 0) {
             ++$i;
             $arrOrder[$i][0] = '';
@@ -446,11 +438,7 @@ class CustomerPdfService extends AbstractFPDIService
             $arrOrder[$i][4] = number_format($Order->getCharge());
         }
 
-        $total['subtotal'] = number_format($Order->getPaymentTotal() - $Order->getTax());
-        $total['tax'] = number_format($Order->getTax());
-        $total['total'] = number_format($Order->getPaymentTotal());
-
-        return array($total, $arrOrder);
+        return $arrOrder;
     }
 
     /**
@@ -482,7 +470,6 @@ class CustomerPdfService extends AbstractFPDIService
      */
     protected function renderTable($total, $data, $w)
     {
-        // フォント情報のバックアップ
         $this->backupFont();
         $this->setBasePosition(0, 100);
 
@@ -542,7 +529,6 @@ class CustomerPdfService extends AbstractFPDIService
             $h = $this->getLastH();
         }
 
-        // フォント情報の復元
         $this->restoreFont();
     }
 

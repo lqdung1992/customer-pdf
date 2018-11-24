@@ -1,11 +1,9 @@
 <?php
-/*
- * This file is part of the OrderPdf plugin
- *
- * Copyright (C) 2016 LOCKON CO.,LTD. All Rights Reserved.
- *
- * For the full copyright and license information, please view the LICENSE
- * file that was distributed with this source code.
+/**
+ * Author: Dung Le Quoc
+ * Email: lqdung1992@gmail.com
+ * Date: 11/5/2018
+ * Time: 2:30 PM
  */
 
 use Plugin\CustomerPdf\Util\Version;

@@ -1,3 +1,11 @@
+{#
+/**
+ * Author: Dung Le Quoc
+ * Email: lqdung1992@gmail.com
+ * Date: 11/5/2018
+ * Time: 2:30 PM
+ */
+ #}
 <script type="text/javascript">
     $(function () {
         $("#invoice-export-pdf").insertAfter("#summary_box__confirm_button").removeClass('hidden');
@@ -5,9 +13,9 @@
     });
 </script>
 <p id="est-export-pdf" class="hidden">
-    <a href="{{ url('plugin_customer_pdf_download', {'id': Order.id, 'type' : constant("Plugin\\CustomerPdf\\Util\\PdfType::ORDER_ESTIMATE")}) }}" class="btn btn-primary btn-block" {{ csrf_token_for_anchor() }} data-method="post" data-confirm="false">Export EST</a>
+    <a href="{{ url('plugin_customer_pdf_download', {'id': Order.id, 'type' : constant("Plugin\\CustomerPdf\\Util\\PdfType::ORDER_ESTIMATE")}) }}" class="btn btn-primary btn-block" {{ csrf_token_for_anchor() }} data-method="post" data-confirm="false">見積書</a>
 </p>
 
 <p id="invoice-export-pdf" class="hidden">
-    <a href="{{ url('plugin_customer_pdf_download', {'id': Order.id, 'type' : constant("Plugin\\CustomerPdf\\Util\\PdfType::ORDER_INVOICE")}) }}" class="btn btn-primary btn-block" {{ csrf_token_for_anchor() }} data-method="post" data-confirm="false">export invoice</a>
+    <a href="{{ url('plugin_customer_pdf_download', {'id': Order.id, 'type' : constant("Plugin\\CustomerPdf\\Util\\PdfType::ORDER_INVOICE")}) }}" class="btn btn-primary btn-block" {{ csrf_token_for_anchor() }} data-method="post" data-confirm="false">注文書</a>
 </p>
