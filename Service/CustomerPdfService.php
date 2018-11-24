@@ -135,12 +135,7 @@ class CustomerPdfService extends AbstractFPDIService
                 break;
             case PdfType::ORDER_ESTIMATE:
             case PdfType::HISTORY_DELIVERY:
-                // render data of order
-                $this->renderOrderData($order);
-                // render data detail of order
-                $this->renderOrderDetailData($order);
-                // render message customer input
-                $this->renderMessage($order->getMessage());
+                $this->renderOrder($order);
                 break;
 
             case PdfType::ORDER_INVOICE:
@@ -194,6 +189,31 @@ class CustomerPdfService extends AbstractFPDIService
             case PdfType::ORDER_ESTIMATE:
                 $this->Cell(0, 0, $this->issueDate, 0, 0, 'R');
                 break;
+        }
+    }
+
+    protected function renderOrder(Order $order)
+    {
+        list($total, $arrOrder) = $this->buildOrderData($order);
+        $widthCell = array(36, 80, 19, 20, 28);
+
+        $arrChunkRender = array(
+            $arrOrder
+        );
+        if (count($arrOrder) > 9) {
+            $arrChunkRender = array_chunk($arrOrder, 9);
+        }
+
+        foreach ($arrChunkRender as $key => $orderDetail) {
+            // render data of order
+            $this->renderOrderData($order);
+            // render data detail of order
+            $this->renderTable($total, $orderDetail, $widthCell);
+            // render message customer input
+            $this->renderMessage($order->getMessage());
+            if ($key != (count($arrChunkRender) - 1)) {
+                $this->addPdfPage();
+            }
         }
     }
 
@@ -263,7 +283,6 @@ class CustomerPdfService extends AbstractFPDIService
             }
         }
 
-
         $this->restoreFont();
     }
 
@@ -317,7 +336,11 @@ class CustomerPdfService extends AbstractFPDIService
 //        $this->SetFont(self::FONT_SJIS, '', $defaultFontSize);
         // total
         $this->SetFont(self::FONT_SJIS, 'B', $defaultFontSize + 3);
-        $paymentTotalText = self::MONEY_PREFIX . number_format($Order->getPaymentTotal());
+        if ($this->type == PdfType::ORDER_ESTIMATE) {
+            $paymentTotalText = self::MONEY_PREFIX . number_format($Order->getPaymentTotal());
+        } else {
+            $paymentTotalText = number_format($Order->getPaymentTotal());
+        }
         $this->lfText(90, 77, $paymentTotalText, $defaultFontSize + 3, 'B');
 
         $this->restoreFont();
@@ -367,7 +390,7 @@ class CustomerPdfService extends AbstractFPDIService
      *
      * @param Order $Order
      */
-    protected function renderOrderDetailData(Order $Order)
+    protected function buildOrderData(Order $Order)
     {
         $arrOrder = array();
         $i = 0;
@@ -427,8 +450,7 @@ class CustomerPdfService extends AbstractFPDIService
         $total['tax'] = number_format($Order->getTax());
         $total['total'] = number_format($Order->getPaymentTotal());
 
-        $widthCell = array(36, 80, 19, 20, 28);
-        $this->setFancyTable($total, $arrOrder, $widthCell);
+        return array($total, $arrOrder);
     }
 
     /**
@@ -458,7 +480,7 @@ class CustomerPdfService extends AbstractFPDIService
      * @param $data
      * @param $w
      */
-    protected function setFancyTable($total, $data, $w)
+    protected function renderTable($total, $data, $w)
     {
         // フォント情報のバックアップ
         $this->backupFont();
