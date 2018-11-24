@@ -1,13 +1,13 @@
 <script type="text/javascript">
     $(function () {
-        $("#invoice-export-pdf").insertAfter("#summary_box__confirm_button");
-        $("#est-export-pdf").insertAfter("#summary_box__confirm_button");
+        $("#invoice-export-pdf").insertAfter("#summary_box__confirm_button").removeClass('hidden');
+        $("#est-export-pdf").insertAfter("#summary_box__confirm_button").removeClass('hidden');
     });
 </script>
-<p id="est-export-pdf">
+<p id="est-export-pdf" class="hidden">
     <a href="{{ url('plugin_customer_pdf_download', {'id': Order.id, 'type' : constant("Plugin\\CustomerPdf\\Util\\PdfType::ORDER_ESTIMATE")}) }}" class="btn btn-primary btn-block" {{ csrf_token_for_anchor() }} data-method="post" data-confirm="false">Export EST</a>
 </p>
 
-<p id="invoice-export-pdf">
+<p id="invoice-export-pdf" class="hidden">
     <a href="{{ url('plugin_customer_pdf_download', {'id': Order.id, 'type' : constant("Plugin\\CustomerPdf\\Util\\PdfType::ORDER_INVOICE")}) }}" class="btn btn-primary btn-block" {{ csrf_token_for_anchor() }} data-method="post" data-confirm="false">export invoice</a>
 </p>

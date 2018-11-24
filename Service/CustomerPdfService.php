@@ -21,8 +21,6 @@ class CustomerPdfService extends AbstractFPDIService
     /** OrderPdf用リポジトリ名 */
     const REPOSITORY_ORDER_PDF = 'eccube.repository.order';
 
-    /** 通貨単位 */
-    const MONETARY_UNIT = '円';
     const MONEY_PREFIX = '¥ ';
 
     /** ダウンロードするPDFファイルのデフォルト名 */
@@ -33,24 +31,11 @@ class CustomerPdfService extends AbstractFPDIService
     /** FONT 明朝 */
     const FONT_SJIS = 'kozminproregular';
 
-    // ====================================
-    // 変数宣言
-    // ====================================
     /** @var Application */
     public $app;
 
     /** @var BaseInfo */
     public $BaseInfo;
-
-    /** 購入詳細情報 ラベル配列
-     * @var array
-     */
-    private $labelCell = array();
-
-    /*** 購入詳細情報 幅サイズ配列
-     * @var array
-     */
-    private $widthCell = array();
 
     /** 最後に処理した注文番号 @var string */
     private $orderId = null;
@@ -77,6 +62,9 @@ class CustomerPdfService extends AbstractFPDIService
     /** @var array */
     private $headerData;
 
+    private $defaultFontSize = 12;
+    private $headerFontSize = 10;
+
     /**
      * コンストラクタ.
      *
@@ -88,9 +76,6 @@ class CustomerPdfService extends AbstractFPDIService
         $this->BaseInfo = $app['eccube.repository.base_info']->get();
         parent::__construct();
 
-//        $this->widthCell = array(25, 50, 12, 12, 24);
-        $this->widthCell = array(35, 80, 19, 20, 28);
-
         // Fontの設定しておかないと文字化けを起こす
         $this->SetFont(self::FONT_SJIS);
 
@@ -100,7 +85,7 @@ class CustomerPdfService extends AbstractFPDIService
         // ヘッダーの出力を無効化
         $this->setPrintHeader(true);
         $this->setHeaderMargin(11);
-        $this->setHeaderFont(array(self::FONT_SJIS, '', 10));
+        $this->setHeaderFont(array(self::FONT_SJIS, '', $this->headerFontSize));
         // フッターの出力を無効化
         $this->setPrintFooter(false);
     }
@@ -121,14 +106,6 @@ class CustomerPdfService extends AbstractFPDIService
         $this->orderId = $order->getId();
         $this->type = $type;
 
-//        $customer = $order->getCustomer();
-//        $this->setDefaultData($customer);
-
-        // テンプレートファイルを読み込む(app配下のテンプレートファイルを優先して読み込む)
-//        $pdfFile = $this->app['config']['OrderPdf']['const']['pdf_file'];
-//        $originalPath = __DIR__.'/../Resource/template/'.$pdfFile;
-//        $userPath = $this->app['config']['template_realdir'].'/../admin/OrderPdf/'.$pdfFile;
-//        $templateFilePath = file_exists($userPath) ? $userPath : $originalPath;
         $templateName = $this->getTemplateName($type);
         $templateFilePath = __DIR__ . '/../Resource/template/pdf/' . $templateName;
         $this->setSourceFile($templateFilePath);
@@ -136,36 +113,39 @@ class CustomerPdfService extends AbstractFPDIService
         // set header data
         switch ($type) {
             case PdfType::HISTORY_DELIVERY:
-                $headerData = array(
-                    'order date' => ': ' .$orderDate,
-                    'order id'   => ': ' . $order->getId(),
-                    'todo'       => ': todo todo'
+                $this->headerData = array(
+                    'order date' => ': ' . $orderDate,
+                    'order id' => ': ' . $order->getId(),
+                    'todo' => ': todo todo'
                 );
-                $this->headerData = $headerData;
+                break;
+            case PdfType::HISTORY_INVOICE:
+                $this->headerData = array(
+                    'order date' => $orderDate,
+                    'order id' => $this->orderId,
+                );
                 break;
         }
-
-
-        // PDFにページを追加する
+        // add new page + header
         $this->addPdfPage();
 
-        // タイトルを描画する
-//            $this->renderTitle($formData['title']);
+        switch ($this->type) {
+            case PdfType::HISTORY_INVOICE:
+                $this->renderHistoryInvoice($order);
+                break;
+            case PdfType::ORDER_ESTIMATE:
+            case PdfType::HISTORY_DELIVERY:
+                // render data of order
+                $this->renderOrderData($order);
+                // render data detail of order
+                $this->renderOrderDetailData($order);
+                // render message customer input
+                $this->renderMessage($order->getMessage());
+                break;
 
-        // 店舗情報を描画する
-//            $this->renderShopData();
-
-        // 注文情報を描画する
-        $this->renderOrderData($order);
-
-        // メッセージを描画する
-//            $this->renderMessageData($order->getMessage());
-
-        // 受注詳細情報を描画する
-        $this->renderOrderDetailData($order);
-
-        // 備考を描画する
-        $this->renderMessage($order->getMessage());
+            case PdfType::ORDER_INVOICE:
+                break;
+        }
 
         return true;
     }
@@ -200,14 +180,76 @@ class CustomerPdfService extends AbstractFPDIService
                     $this->SetX(140);
                     $this->MultiCell(20, 0, $key, 0, null, false, 0);
                     $this->MultiCell(0, 0, $headerDatum, 0, null, false, 1);
-//                    $this->Cell(20, 0, $headerDatum, 0, 1, 'L');
-//                    $this->Ln();
+                }
+                break;
+            case PdfType::HISTORY_INVOICE:
+                $this->setHeaderMargin(9);
+                $this->setHeaderFont(array(self::FONT_SJIS, '', $this->headerFontSize + 1));
+                foreach ($this->headerData as $headerDatum) {
+                    $this->SetX(164);
+                    $this->MultiCell(0, 6, $headerDatum, 0, null, false, 1);
                 }
                 break;
             default:
                 $this->Cell(0, 0, $this->issueDate, 0, 0, 'R');
                 break;
         }
+    }
+
+    protected function renderHistoryInvoice(Order $order)
+    {
+        $this->backupFont();
+        $font = $this->defaultFontSize + 6;
+        $style = 'B';
+        $this->SetFont(self::FONT_SJIS, $style, $font);
+
+        // set customer name
+        $customerName = $order->getName01() . $order->getName02();
+        $this->lfText(20, 29, $customerName, $font, $style);
+
+        $totalPayment = number_format($order->getPaymentTotal());
+        $this->lfText(73, 53, $totalPayment, $font + 7, $style);
+
+        $subTotal = number_format($order->getPaymentTotal() - $order->getTax());
+        $this->lfText(47, 121, $subTotal, $font, $style);
+
+        $this->lfText(47, 131, number_format($order->getTax()), $font, $style);
+
+        $this->restoreFont();
+    }
+
+    /**
+     * 購入者情報を設定する.
+     *
+     * @param Order $Order
+     */
+    protected function renderOrderData(Order $Order)
+    {
+        $this->setBasePosition();
+        $this->backupFont();
+
+        $defaultFontSize = $this->defaultFontSize;
+
+        $text = $Order->getZip01() . ' - ' . $Order->getZip02();
+        $this->lfText(20, 34, $text, $defaultFontSize);
+
+        $text = $Order->getPref() . $Order->getAddr01();
+        $this->lfText(20, 39, $text, $defaultFontSize);
+        $this->lfText(20, 44, $Order->getAddr02(), $defaultFontSize); //購入者住所2
+
+        $this->lfText(20, 49, $Order->getTel01() . '-' . $Order->getTel02() . '-' . $Order->getTel03(), $defaultFontSize); //購入者住所2
+
+        $text = $Order->getName01() . '　' . $Order->getName02() . '　様';
+        $this->lfText(20, 55, $text, $defaultFontSize + 2);
+
+
+//        $this->SetFont(self::FONT_SJIS, '', $defaultFontSize);
+        // total
+        $this->SetFont(self::FONT_SJIS, 'B', $defaultFontSize + 3);
+        $paymentTotalText = self::MONEY_PREFIX . number_format($Order->getPaymentTotal());
+        $this->lfText(90, 77, $paymentTotalText, $defaultFontSize + 3, 'B');
+
+        $this->restoreFont();
     }
 
     /**
@@ -229,67 +271,6 @@ class CustomerPdfService extends AbstractFPDIService
             $this->setHeader();
         }
     }
-//
-//    /**
-//     * PDFに店舗情報を設定する
-//     * ショップ名、ロゴ画像以外はdtb_helpに登録されたデータを使用する.
-//     */
-//    protected function renderShopData()
-//    {
-//        // 基準座標を設定する
-//        $this->setBasePosition();
-//
-//        // 特定商取引法を取得する
-//        /* @var Help $Help */
-//        $Help = $this->app['eccube.repository.help']->get();
-//
-//        // ショップ名
-//        $this->lfText(125, 60, $this->BaseInfo->getShopName(), 8, 'B');
-//        // URL
-//        $this->lfText(125, 63, $Help->getLawUrl(), 8);
-//        // 会社名
-//        $this->lfText(125, 68, $Help->getLawCompany(), 8);
-//        // 郵便番号
-//        $text = '〒 ' . $Help->getLawZip01() . ' - ' . $Help->getLawZip02();
-//        $this->lfText(125, 71, $text, 8);
-//        // 都道府県+所在地
-//        $lawPref = $Help->getLawPref() ? $Help->getLawPref()->getName() : null;
-//        $text = $lawPref . $Help->getLawAddr01();
-//        $this->lfText(125, 74, $text, 8);
-//        $this->lfText(125, 77, $Help->getLawAddr02(), 8);
-//
-//        // 電話番号
-//        $text = 'TEL: ' . $Help->getLawTel01() . '-' . $Help->getLawTel02() . '-' . $Help->getLawTel03();
-//
-//        //FAX番号が存在する場合、表示する
-//        if (strlen($Help->getLawFax01()) > 0) {
-//            $text .= '　FAX: ' . $Help->getLawFax01() . '-' . $Help->getLawFax02() . '-' . $Help->getLawFax03();
-//        }
-//        $this->lfText(125, 80, $text, 8);  //TEL・FAX
-//
-//        // メールアドレス
-//        if (strlen($Help->getLawEmail()) > 0) {
-//            $text = 'Email: ' . $Help->getLawEmail();
-//            $this->lfText(125, 83, $text, 8);      // Email
-//        }
-//
-//        // ロゴ画像(app配下のロゴ画像を優先して読み込む)
-//        $logoFile = $this->app['config']['OrderPdf']['const']['logo_file'];
-//        $originalPath = __DIR__ . '/../Resource/template/' . $logoFile;
-//        $userPath = $this->app['config']['template_realdir'] . '/../admin/OrderPdf/' . $logoFile;
-//        $logoFilePath = file_exists($userPath) ? $userPath : $originalPath;
-//        $this->Image($logoFilePath, 124, 46, 40);
-//    }
-
-    /**
-     * @param string $message
-     */
-//    protected function renderMessageData($message)
-//    {
-//        $this->lfText(27, 70, $message, 8);  //メッセージ1
-//        $this->lfText(27, 74, $formData['message2'], 8);  //メッセージ2
-//        $this->lfText(27, 78, $formData['message3'], 8);  //メッセージ3
-//    }
 
     /**
      * @param string $message
@@ -299,93 +280,12 @@ class CustomerPdfService extends AbstractFPDIService
         // フォント情報のバックアップ
         $this->backupFont();
 
-        $this->SetFont(self::FONT_SJIS, '', 15);
+        $this->SetFont(self::FONT_SJIS, '', $this->defaultFontSize + 3);
 
         $this->Ln();
         // rtrimを行う
         $text = preg_replace('/\s+$/us', '', $message);
         $this->MultiCell(0, 0, $text, 0, null, false, 0);
-
-        // フォント情報の復元
-        $this->restoreFont();
-    }
-
-    /**
-     * タイトルをPDFに描画する.
-     *
-     * @param string $title
-     */
-//    protected function renderTitle($title)
-//    {
-//        // 基準座標を設定する
-//        $this->setBasePosition();
-//
-//        // フォント情報のバックアップ
-//        $this->backupFont();
-//
-//        //文書タイトル（納品書・請求書）
-//        $this->SetFont(self::FONT_GOTHIC, '', 15);
-//        $this->Cell(0, 10, $title, 0, 2, 'C', 0, '');
-//        $this->Cell(0, 66, '', 0, 2, 'R', 0, '');
-//        $this->Cell(5, 0, '', 0, 0, 'R', 0, '');
-//
-//        // フォント情報の復元
-//        $this->restoreFont();
-//    }
-
-    /**
-     * 購入者情報を設定する.
-     *
-     * @param Order $Order
-     */
-    protected function renderOrderData(Order $Order)
-    {
-        // 基準座標を設定する
-        $this->setBasePosition();
-
-        // フォント情報のバックアップ
-        $this->backupFont();
-
-        // =========================================
-        // 購入者情報部
-        // =========================================
-        // 郵便番号
-        $text = $Order->getZip01() . ' - ' . $Order->getZip02();
-        $defaultFontSize = 12;
-        $this->lfText(20, 34, $text, $defaultFontSize);
-
-        // 購入者都道府県+住所1
-        $text = $Order->getPref() . $Order->getAddr01();
-        $this->lfText(20, 39, $text, $defaultFontSize);
-        $this->lfText(20, 44, $Order->getAddr02(), $defaultFontSize); //購入者住所2
-
-        $this->lfText(20, 49, $Order->getTel01() . '-' . $Order->getTel02() . '-' . $Order->getTel03(), $defaultFontSize); //購入者住所2
-
-        // 購入者氏名
-        $text = $Order->getName01() . '　' . $Order->getName02() . '　様';
-        $this->lfText(20, 55, $text, $defaultFontSize + 2);
-
-        // =========================================
-        // お買い上げ明細部
-        // =========================================
-        $this->SetFont(self::FONT_SJIS, '', $defaultFontSize);
-
-        //ご注文日
-
-
-//        $this->lfText(150, 0, $orderDate , $defaultFontSize);
-        //注文番号
-//        $this->lfText(25, 135, $Order->getId(), $defaultFontSize);
-
-        // total
-        $this->SetFont(self::FONT_SJIS, 'B', 15);
-        $paymentTotalText = self::MONEY_PREFIX . number_format($Order->getPaymentTotal());
-        $this->lfText(90, 77, $paymentTotalText, 15, 'B');
-//        80
-//        $this->setBasePosition(120, 95.5);
-//        $this->Cell(5, 7, '', 0, 0, '', 0, '');
-//        $this->Cell(67, 8, $paymentTotalText, 0, 2, 'R', 0, '');
-//        $this->Cell(0, 45, '', 0, 2, '', 0, '');
 
         // フォント情報の復元
         $this->restoreFont();
@@ -399,11 +299,6 @@ class CustomerPdfService extends AbstractFPDIService
     protected function renderOrderDetailData(Order $Order)
     {
         $arrOrder = array();
-        // テーブルの微調整を行うための購入商品詳細情報をarrayに変換する
-
-        // =========================================
-        // 受注詳細情報
-        // =========================================
         $i = 0;
         /* @var OrderDetail $OrderDetail */
         foreach ($Order->getOrderDetails() as $OrderDetail) {
@@ -418,15 +313,22 @@ class CustomerPdfService extends AbstractFPDIService
                 }
             }
             // 税
-            $tax = $this->app['eccube.service.tax_rule']->calcTax($OrderDetail->getPrice(), $OrderDetail->getTaxRate(), $OrderDetail->getTaxRule());
-            $OrderDetail->setPriceIncTax($OrderDetail->getPrice() + $tax);
+//            $tax = $this->app['eccube.service.tax_rule']->calcTax($OrderDetail->getPrice(), $OrderDetail->getTaxRate(), $OrderDetail->getTaxRule());
+            $OrderDetail->setPriceIncTax($OrderDetail->getPrice());
 
             // todo: order code
             $arrOrder[$i][0] = $OrderDetail->getId();
             // product
-            $arrOrder[$i][1] = sprintf('%s / %s / %s', $OrderDetail->getProductName(), $OrderDetail->getProductCode(), $classCategory);
+            $productName = $OrderDetail->getProductName();
+            if ($OrderDetail->getProductCode()) {
+                $productName .= ' / ' . $OrderDetail->getProductCode();
+            }
+            if ($classCategory) {
+                $productName .= ' / ' . $classCategory;
+            }
+            $arrOrder[$i][1] = $productName;
             // 税込金額（単価）
-            $arrOrder[$i][2] = number_format($OrderDetail->getPriceIncTax());
+            $arrOrder[$i][2] = number_format($OrderDetail->getPrice());
             // 購入数量
             $arrOrder[$i][3] = number_format($OrderDetail->getQuantity());
             // 小計（商品毎）
@@ -435,50 +337,27 @@ class CustomerPdfService extends AbstractFPDIService
             ++$i;
         }
 
-        // =========================================
-        // 小計
-        // =========================================
-//        $arrOrder[$i][0] = '';
-//        $arrOrder[$i][1] = '';
-//        $arrOrder[$i][2] = '';
-//        $arrOrder[$i][3] = '';
-
-//        ++$i;
-//        $arrOrder[$i][0] = '';
-//        $arrOrder[$i][1] = '';
-//        $arrOrder[$i][2] = '商品合計';
-//        $arrOrder[$i][3] = number_format($Order->getSubtotal()).self::MONETARY_UNIT;
-
-        ++$i;
         $arrOrder[$i][0] = '';
         $arrOrder[$i][1] = '送料';
         $arrOrder[$i][2] = number_format($Order->getDeliveryFeeTotal());
         $arrOrder[$i][3] = 1;
         $arrOrder[$i][4] = number_format($Order->getDeliveryFeeTotal());
 
-        $total['subtotal'] = number_format($Order->getSubtotal());
-        $total['charge'] = number_format($Order->getCharge());
-        $total['total'] = number_format($Order->getTotal());
-//        ++$i;
-//        $arrOrder[$i][0] = '';
-//        $arrOrder[$i][1] = '';
-//        $arrOrder[$i][2] = '手数料';
-//        $arrOrder[$i][3] = number_format($Order->getCharge()).self::MONETARY_UNIT;
+        if ($Order->getCharge() > 0) {
+            ++$i;
+            $arrOrder[$i][0] = '';
+            $arrOrder[$i][1] = '手数料';
+            $arrOrder[$i][2] = number_format($Order->getCharge());
+            $arrOrder[$i][3] = 1;
+            $arrOrder[$i][4] = number_format($Order->getCharge());
+        }
 
-//        ++$i;
-//        $arrOrder[$i][0] = '';
-//        $arrOrder[$i][1] = '';
-//        $arrOrder[$i][2] = '値引き';
-//        $arrOrder[$i][3] = '- '.number_format($Order->getDiscount()).self::MONETARY_UNIT;
-//
-//        ++$i;
-//        $arrOrder[$i][0] = '';
-//        $arrOrder[$i][1] = '';
-//        $arrOrder[$i][2] = '請求金額';
-//        $arrOrder[$i][3] = number_format($Order->getPaymentTotal()).self::MONETARY_UNIT;
+        $total['subtotal'] = number_format($Order->getPaymentTotal() - $Order->getTax());
+        $total['charge'] = number_format($Order->getTax());
+        $total['total'] = number_format($Order->getPaymentTotal());
 
-        // PDFに設定する
-        $this->setFancyTable($total, $arrOrder, $this->widthCell);
+        $widthCell = array(36, 80, 19, 20, 28);
+        $this->setFancyTable($total, $arrOrder, $widthCell);
     }
 
     /**
@@ -504,73 +383,36 @@ class CustomerPdfService extends AbstractFPDIService
     }
 
     /**
-     * Colored table.
-     *
-     * TODO: 後の列の高さが大きい場合、表示が乱れる。
-     *
-     * @param array $total 出力するラベル名一覧
-     * @param array $data 出力するデータ
-     * @param array $w 出力するセル幅一覧
+     * @param $total
+     * @param $data
+     * @param $w
      */
     protected function setFancyTable($total, $data, $w)
     {
         // フォント情報のバックアップ
         $this->backupFont();
 
-        // 開始座標の設定
-//         $this->setBasePosition(0, 149);
-        //95.5
         $this->setBasePosition(0, 100);
 
-        // Colors, line width and bold font
-//        $this->SetFillColor(216, 216, 216);
-//        $this->SetTextColor(0);
-//        $this->SetDrawColor(0, 0, 0);
-//        $this->SetLineWidth(.3);
-        $this->SetLineWidth(.6);
+        $this->SetLineWidth(0.6);
 
-        $this->SetFont(self::FONT_SJIS, 'B', 12);
+        $this->SetFont(self::FONT_SJIS, 'B', $this->defaultFontSize);
         $this->SetFont('', 'B');
 
-        // Header
-//        $this->Cell(5, 7, '', 0, 0, '', 0, '');
-//        $count = count($header);
-//        for ($i = 0; $i < $count; ++$i) {
-//            $this->Cell($w[$i], 7, $header[$i], 1, 0, 'C', 1);
-//        }
-//        $this->Ln();
-
-        // Color and font restoration
-//        $this->SetFillColor(235, 235, 235);
-//        $this->SetTextColor(0);
-//        $this->SetFont('');
-        // Data
-//        $fill = 0;
-//        $h = 8;
         foreach ($data as $rowKey => $row) {
-            // 行のの処理
             $i = 0;
-            $h = 13;
-//            $this->Cell(5, $h, '', 0, 0, '', 0, '');
-
-            // Cellの高さを保持
+            $h = 14;
             $cellHeight = 0;
             foreach ($row as $key => $col) {
-                // 列の処理
-                // TODO: 汎用的ではない処理。この指定は呼び出し元で行うようにしたい。
-                // テキストの整列を指定する
-//                $align = ($i == 0) ? 'L' : 'R';
                 $align = 'C';
                 if ($key == 1 && !empty($row[0])) {
                     $align = 'L';
                 }
 
-                // セル高さが最大値を保持する
                 if ($h >= $cellHeight) {
                     $cellHeight = $h;
                 }
 
-                // 最終列の場合は次の行へ移動
                 // (0: 右へ移動(既定)/1: 次の行へ移動/2: 下へ移動)
                 $ln = ($i == (count($row) - 1)) ? 1 : 0;
 
@@ -587,38 +429,26 @@ class CustomerPdfService extends AbstractFPDIService
 
                 ++$i;
             }
-//            $fill = !$fill;
         }
+//
+//        $rowNum = count($data);
+//
+//        if ($rowNum > 9) {
+//            $tmp = 0;
+//        } else {
+//            $tmp = 9 - $rowNum;
+//        }
+//        for ($in = 0; $in < $tmp; $in++) {
+//            $this->Ln();
+//        }
+//        $this->Ln(5);
 
-        $rowNum = count($data);
-
-        if ($rowNum > 9) {
-            $tmp = 0;
-        } else {
-            $tmp = 9 - $rowNum;
-        }
-        for ($in = 0; $in < $tmp; $in++) {
-            $this->Ln();
-        }
-        // base line: 96
-        // 8*9 = 72
+        $this->setBasePosition(15, 222);
         $h = 9;
-        $this->Ln(5);
         foreach ($total as $item) {
-//            if ($h < $cellHeight) {
-//                $h = $cellHeight;
-//            }
-            $this->Cell(0, $h, $item, 0, 0, 'R');
-//            $cellHeight = 8;
-            $this->Ln();
+            $this->Cell(0, $h, $item, 0, 1, 'R');
             $h = $this->getLastH();
         }
-//        $this->lfText(72, $y, $text)
-
-
-//        $this->Cell(1, $h, '', 0, 0, '', 0, '');
-//        $this->Cell(array_sum($w), 0, '', 'T');
-//        $this->SetFillColor(255);
 
         // フォント情報の復元
         $this->restoreFont();
@@ -641,27 +471,6 @@ class CustomerPdfService extends AbstractFPDIService
         $actualY = is_null($y) ? $result['top'] : $y;
         $this->SetY($actualY);
     }
-
-    /**
-     * データが設定されていない場合にデフォルト値を設定する.
-     *
-     * @param array $formData
-     */
-//    protected function setDefaultData(array &$formData)
-//    {
-//        $defaultList = array(
-//            'title' => $this->app->trans('admin.plugin.order_pdf.title.default'),
-//            'message1' => $this->app->trans('admin.plugin.order_pdf.message1.default'),
-//            'message2' => $this->app->trans('admin.plugin.order_pdf.message2.default'),
-//            'message3' => $this->app->trans('admin.plugin.order_pdf.message3.default'),
-//        );
-//
-//        foreach ($defaultList as $key => $value) {
-//            if (is_null($formData[$key])) {
-//                $formData[$key] = $value;
-//            }
-//        }
-//    }
 
     /**
      * Font情報のバックアップ.
