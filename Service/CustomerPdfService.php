@@ -202,53 +202,67 @@ class CustomerPdfService extends AbstractFPDIService
         $this->backupFont();
         $font = $this->defaultFontSize;
         $style = 'B';
-        $this->SetFont('', $style, $font);
 
-        $this->setBasePosition(0, 113);
         $width = array(
             10, 60, 20, 8, 50
         );
 
         $customer = $order->getName01().$order->getName02();
-        /** @var OrderDetail $orderDetail */
-        foreach ($order->getOrderDetails() as $orderDetail) {
-            $row = array(
-                '',
-                $orderDetail->getId(),
-                $orderDetail->getQuantity(),
-                '',
-                $customer
-            );
-            $i = 0;
-            $h = 11.5;
-            $cellHeight = 0;
-            foreach ($row as $key => $col) {
-                $align = 'L';
-                if ($key == 2) {
-                    $align = 'R';
-                }
+        $arrOrderDetail = array(
+            $order->getOrderDetails()->toArray()
+        );
+        if ($order->getOrderDetails()->count() > 10) {
+            $arrOrderDetail = array_chunk($order->getOrderDetails()->toArray(), 10);
+        }
 
-                if ($h >= $cellHeight) {
-                    $cellHeight = $h;
-                }
-
-                // (0: 右へ移動(既定)/1: 次の行へ移動/2: 下へ移動)
-                $ln = ($i == (count($row) - 1)) ? 1 : 0;
-
-                $this->MultiCell(
-                    $width[$i],             // セル幅
-                    $cellHeight,        // セルの最小の高さ
-                    $col,               // 文字列
-                    0,                  // 境界線の描画方法を指定
-                    $align,             // テキストの整列
-                    false,              // 背景の塗つぶし指定
-                    $ln                 // 出力後のカーソルの移動方法
+        foreach ($arrOrderDetail as $keyChunk => $chunk) {
+            $this->SetFont('', $style, $font);
+            $this->setBasePosition(0, 113);
+            /** @var OrderDetail $orderDetail */
+            foreach ($chunk as $orderDetail) {
+                $row = array(
+                    '',
+                    $orderDetail->getId(),
+                    number_format($orderDetail->getQuantity()),
+                    '',
+                    $customer
                 );
-                $h = $this->getLastH();
+                $i = 0;
+                $h = 11.5;
+                $cellHeight = 0;
+                foreach ($row as $key => $col) {
+                    $align = 'L';
+                    if ($key == 2) {
+                        $align = 'R';
+                    }
 
-                ++$i;
+                    if ($h >= $cellHeight) {
+                        $cellHeight = $h;
+                    }
+
+                    // (0: 右へ移動(既定)/1: 次の行へ移動/2: 下へ移動)
+                    $ln = ($i == (count($row) - 1)) ? 1 : 0;
+
+                    $this->MultiCell(
+                        $width[$i],             // セル幅
+                        $cellHeight,        // セルの最小の高さ
+                        $col,               // 文字列
+                        0,                  // 境界線の描画方法を指定
+                        $align,             // テキストの整列
+                        false,              // 背景の塗つぶし指定
+                        $ln                 // 出力後のカーソルの移動方法
+                    );
+                    $h = $this->getLastH();
+
+                    ++$i;
+                }
+            }
+
+            if ($keyChunk != (count($arrOrderDetail) - 1)) {
+                $this->addPdfPage();
             }
         }
+
 
         $this->restoreFont();
     }
