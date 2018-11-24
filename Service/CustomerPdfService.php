@@ -144,6 +144,7 @@ class CustomerPdfService extends AbstractFPDIService
                 break;
 
             case PdfType::ORDER_INVOICE:
+                $this->renderOrderInvoice($order);
                 break;
         }
 
@@ -190,10 +191,66 @@ class CustomerPdfService extends AbstractFPDIService
                     $this->MultiCell(0, 6, $headerDatum, 0, null, false, 1);
                 }
                 break;
-            default:
+            case PdfType::ORDER_ESTIMATE:
                 $this->Cell(0, 0, $this->issueDate, 0, 0, 'R');
                 break;
         }
+    }
+
+    protected function renderOrderInvoice(Order $order)
+    {
+        $this->backupFont();
+        $font = $this->defaultFontSize;
+        $style = 'B';
+        $this->SetFont('', $style, $font);
+
+        $this->setBasePosition(0, 113);
+        $width = array(
+            10, 60, 20, 8, 50
+        );
+
+        $customer = $order->getName01().$order->getName02();
+        /** @var OrderDetail $orderDetail */
+        foreach ($order->getOrderDetails() as $orderDetail) {
+            $row = array(
+                '',
+                $orderDetail->getId(),
+                $orderDetail->getQuantity(),
+                '',
+                $customer
+            );
+            $i = 0;
+            $h = 11.5;
+            $cellHeight = 0;
+            foreach ($row as $key => $col) {
+                $align = 'L';
+                if ($key == 2) {
+                    $align = 'R';
+                }
+
+                if ($h >= $cellHeight) {
+                    $cellHeight = $h;
+                }
+
+                // (0: 右へ移動(既定)/1: 次の行へ移動/2: 下へ移動)
+                $ln = ($i == (count($row) - 1)) ? 1 : 0;
+
+                $this->MultiCell(
+                    $width[$i],             // セル幅
+                    $cellHeight,        // セルの最小の高さ
+                    $col,               // 文字列
+                    0,                  // 境界線の描画方法を指定
+                    $align,             // テキストの整列
+                    false,              // 背景の塗つぶし指定
+                    $ln                 // 出力後のカーソルの移動方法
+                );
+                $h = $this->getLastH();
+
+                ++$i;
+            }
+        }
+
+        $this->restoreFont();
     }
 
     protected function renderHistoryInvoice(Order $order)
@@ -353,7 +410,7 @@ class CustomerPdfService extends AbstractFPDIService
         }
 
         $total['subtotal'] = number_format($Order->getPaymentTotal() - $Order->getTax());
-        $total['charge'] = number_format($Order->getTax());
+        $total['tax'] = number_format($Order->getTax());
         $total['total'] = number_format($Order->getPaymentTotal());
 
         $widthCell = array(36, 80, 19, 20, 28);
@@ -391,7 +448,6 @@ class CustomerPdfService extends AbstractFPDIService
     {
         // フォント情報のバックアップ
         $this->backupFont();
-
         $this->setBasePosition(0, 100);
 
         $this->SetLineWidth(0.6);
